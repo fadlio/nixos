@@ -1,0 +1,115 @@
+{ lib, vars, systemName, ... }:
+
+{
+  nix = {
+    settings = {
+      auto-optimise-store = true; # Optimise syslinks
+    };
+    gc = {
+      # Automatic garbage collection
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 2d";
+    };
+    extraOptions = ''
+      experimental-features = nix-command flakes
+      keep-outputs          = true
+      keep-derivations      = true
+    '';
+  };
+  nixpkgs.config.allowUnfree = true;
+
+  # system = {
+  #   autoUpgrade = {
+  #     enable = true;
+  #     channel = "https://nixos.org/channels/nixos-unstable";
+  #   };
+  # };
+
+  security = {
+    polkit.enable = true; # used for controlling system-wide privileges.
+    sudo.wheelNeedsPassword = false; # User does not need to give password when using sudo.
+  };
+
+  boot = {
+    consoleLogLevel = 0;
+    # kernelPackages = pkgs.linuxPackages_latest;
+    kernelParams = [
+      "udev.log_priority=3"
+    ];
+    kernel.sysctl = {
+      "fs.inotify.max_queued_events" = 1048576;
+      "fs.inotify.max_user_instances" = 1048576;
+      "fs.inotify.max_user_watches" = 1048576;
+      "kernel.dmesg_restrict" = 1;
+      "kernel.keys.maxkeys" = 2000;
+      "net.ipv4.ip_forward" = 1;
+      "net.ipv6.conf.all.forwarding" = "1";
+      "net.ipv6.conf.default.forwarding" = "1";
+      "net.ipv4.neigh.default.gc_thresh3" = 8192;
+      "net.ipv6.neigh.default.gc_thresh3" = 8192;
+      "vm.max_map_count" = 262144;
+      "vm.swappiness" = 10;
+    };
+    tmp.cleanOnBoot = true;
+  };
+
+  time.timeZone = "America/Sao_Paulo";
+
+  i18n = {
+    # Select internationalisation properties.
+    defaultLocale = "en_US.UTF-8";
+
+    extraLocaleSettings = {
+      LC_ADDRESS = "pt_BR.UTF-8";
+      LC_IDENTIFICATION = "pt_BR.UTF-8";
+      LC_MEASUREMENT = "pt_BR.UTF-8";
+      LC_MONETARY = "pt_BR.UTF-8";
+      LC_NAME = "pt_BR.UTF-8";
+      LC_NUMERIC = "pt_BR.UTF-8";
+      LC_PAPER = "pt_BR.UTF-8";
+      LC_TELEPHONE = "pt_BR.UTF-8";
+      LC_TIME = "pt_BR.UTF-8";
+    };
+  };
+
+  networking = {
+    firewall.enable = lib.mkDefault true;
+    useDHCP = false;
+    dhcpcd.wait = "background";
+  };
+
+  # Speed up boot / shut down
+  systemd.services.systemd-udev-settle.enable = false;
+  systemd.services.NetworkManager-wait-online.enable = false;
+  systemd.services.plymouth-quit.enable = false;
+  systemd.extraConfig = "DefaultTimeoutStopSec=30s";
+
+  # Delete old logs
+  services.journald.extraConfig = "MaxRetentionSec=14day";
+
+  systemd.tmpfiles.rules = [
+    "d  /mnt  0755  root  root  -  -"
+  ];
+
+  documentation = {
+    enable = true;
+    doc.enable = false;
+    info.enable = false;
+    man.enable = true;
+    nixos.enable = true;
+  };
+
+  users = {
+    mutableUsers = true;
+    users = {
+      root = {
+        hashedPassword = "*";
+      };
+    };
+  };
+
+  system.name = systemName;
+  system.stateVersion = vars.stateVersion;
+  system.configurationRevision = vars.rev;
+}
